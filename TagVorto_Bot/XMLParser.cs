@@ -7,9 +7,11 @@ using System.Xml;
 
 namespace TagVorto_Bot
 {
-    public static class XMLParser
+    public static class XMLItemParser
     {
-        public static List<Item> Parse(String docUrl)
+        private const String EO_ENCODING = "ISO-8859-3";
+
+        public static List<Item> GetItemsFromFile(String docUrl)
         {
             XmlDocument doc = new XmlDocument();
             doc.Load(docUrl);
@@ -17,15 +19,15 @@ namespace TagVorto_Bot
             if (doc.FirstChild.NodeType == XmlNodeType.XmlDeclaration)
             {
                 XmlDeclaration xmlDecl = (XmlDeclaration)doc.FirstChild;
-                xmlDecl.Encoding = "ISO-8859-3";
+                xmlDecl.Encoding = EO_ENCODING;
             }
 
-            var itemList = GetItems(ref doc);
+            var itemList = GetItemsFromDocument(ref doc);
             return itemList;
         }
 
 
-        private static List<Item> GetItems(ref XmlDocument doc)
+        public static List<Item> GetItemsFromDocument(ref XmlDocument doc)
         {
             List<Item> items = new List<Item>();
 
