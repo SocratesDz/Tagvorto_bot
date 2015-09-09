@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -13,22 +15,26 @@ namespace TagVorto_Bot
     {
         private const String RSS_PATH = "http://eo.lernu.net/rss/tagovortoj.php";
         private const String TOKEN_API = "124472920:AAGN8w67IHoP-ddf_0smKGW1BSRmipbLTC4";
+        private const String USERS_FILE = "users.dat";
+
         private XmlDocument tagvortoDoc;
-        private DateTime mostRecentCheck;
-        private TimeSpan timeCheckSpan;
         private Item tagvorto;
         private Telegram.Bot.Api botApi;
+        private UserList userList;
 
         public Bot()
         {
             botApi = new Telegram.Bot.Api(TOKEN_API);
-            mostRecentCheck = new DateTime();
             tagvortoDoc = new XmlDocument();
-            tagvorto = null;
-            GetXml();
+            tagvorto = this.GetSingleWord();
+            userList = new UserList();
+            userList = this.getUsersFromFile();
+            this.GetXml();
         }
 
-        public void GetXml()
+        #region Word Fetching
+
+        private void GetXml()
         {
             WebRequest getRSS = WebRequest.Create(RSS_PATH);
             Stream response = getRSS.GetResponse().GetResponseStream();
@@ -59,15 +65,19 @@ namespace TagVorto_Bot
             return tagvorto;
         }
 
-        public void senduVorton(Telegram.Bot.Types.Update update)
+        #endregion
+
+        #region Word Sending
+
+        private void senduVorton(Telegram.Bot.Types.Update update)
         {
             var item = this.GetSingleWord();
             var vorto = String.Format("{0}\n\n{1}", item.Title, item.Description);
-
-            botApi.SendTextMessage(update.Message.From.Id, vorto);
+            
+            botApi.SendTextMessage(update.Message.Chat.Id, vorto);
         }
 
-        public void bonvenaMesagxo(Telegram.Bot.Types.Update update)
+        private void bonvenaMesagxo(Telegram.Bot.Types.Update update)
         {
             var bonvenon = "Estu bonvena! Mi estas la Tagvorta Roboto. \n" +
                 "Mi sendos al vi la vorton de la tago. \n" +
@@ -75,6 +85,75 @@ namespace TagVorto_Bot
 
             botApi.SendTextMessage(update.Message.From.Id, bonvenon);
         }
+
+        private void senduAbonitaMesagxo(Telegram.Bot.Types.Update update)
+        {
+            var abonitaMesagxo = "Dankon por aboni al ĉi tia servo. Vi ricevos ĉiutage la vorton de la tago.";
+            botApi.SendTextMessage(update.Message.From.Id, abonitaMesagxo);
+        }
+
+        private void senduMalabonitaMesagxo(Telegram.Bot.Types.Update update)
+        {
+            var abonitaMesagxo = "Vi estas malabonita de ĉi tia servo.";
+            botApi.SendTextMessage(update.Message.From.Id, abonitaMesagxo);
+        }
+
+        private void senduVortonAlAbonantoj()
+        {
+            var item = this.GetSingleWord();
+            var vorto = String.Format("{0}\n\n{1}", item.Title, item.Description);
+
+            foreach (var id in userList.users)
+            {
+                botApi.SendTextMessage(id, vorto);
+            }
+        }
+
+        #endregion
+
+        #region UserManagement
+
+        private void createUsersFile()
+        {
+            IFormatter formatter = new BinaryFormatter();
+            Stream stream = new FileStream(USERS_FILE, FileMode.Create, FileAccess.Write, FileShare.None);
+            formatter.Serialize(stream, userList);
+        }
+
+        private UserList getUsersFromFile()
+        {
+            IFormatter formatter = new BinaryFormatter();
+            Stream stream;
+            try
+            {
+                stream = new FileStream(USERS_FILE, FileMode.Open, FileAccess.Read, FileShare.Read);
+            }
+            catch (System.IO.FileNotFoundException notFoundEx)
+            {
+                this.createUsersFile();
+                stream = new FileStream(USERS_FILE, FileMode.Open, FileAccess.Read, FileShare.Read);
+            }
+            UserList list = (UserList)formatter.Deserialize(stream);
+            stream.Close();
+
+            return list;
+        }
+
+        private void saveNewUser(int userId)
+        {
+            this.userList.users.Add(userId);
+            this.createUsersFile();
+        }
+
+        private void deleteUser(int userId)
+        {
+            this.userList.users.Remove(userId);
+            this.createUsersFile();
+        }
+
+        #endregion
+
+        #region Run
 
         public void Run()
         {
@@ -102,15 +181,17 @@ namespace TagVorto_Bot
                         }
                         else if (update.Message.Text.StartsWith("/aboni"))
                         {
-                            // TODO: Implementi la uzantan gardadon
+                            this.saveNewUser(update.Message.From.Id);
+                            this.senduAbonitaMesagxo(update);
                         }
                         else if (update.Message.Text.StartsWith("/malaboni"))
                         {
-                            // TODO: Forvisxi la uzanton
+                            this.deleteUser(update.Message.From.Id);
+                            this.senduMalabonitaMesagxo(update);
                         }
                         else if (update.Message.Text.StartsWith("/stop"))
                         {
-                            // TODO: Same kiel /malaboni
+                            // FARU NENION (EBLE /malaboni)
                         }
                         else if (update.Message.Text.Any())
                         {
@@ -118,7 +199,14 @@ namespace TagVorto_Bot
                         }
                     }
                 }
+
+                if (tagvorto.PubDate.AddDays(1).CompareTo(DateTime.Now) == -1)
+                {
+                    this.senduVortonAlAbonantoj();
+                }
             }
         }
+
+        #endregion
     }
 }
