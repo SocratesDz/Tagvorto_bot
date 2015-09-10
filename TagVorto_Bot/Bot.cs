@@ -118,6 +118,7 @@ namespace TagVorto_Bot
             IFormatter formatter = new BinaryFormatter();
             Stream stream = new FileStream(USERS_FILE, FileMode.Create, FileAccess.Write, FileShare.None);
             formatter.Serialize(stream, userList);
+            stream.Close();
         }
 
         private UserList getUsersFromFile()
@@ -181,12 +182,18 @@ namespace TagVorto_Bot
                         }
                         else if (update.Message.Text.StartsWith("/aboni"))
                         {
-                            this.saveNewUser(update.Message.From.Id);
+                            if (!this.userList.users.Contains(update.Message.From.Id))
+                            {
+                                this.saveNewUser(update.Message.From.Id);
+                            }
                             this.senduAbonitaMesagxo(update);
                         }
                         else if (update.Message.Text.StartsWith("/malaboni"))
                         {
-                            this.deleteUser(update.Message.From.Id);
+                            if (this.userList.users.Contains(update.Message.From.Id))
+                            {
+                                this.deleteUser(update.Message.From.Id);
+                            }
                             this.senduMalabonitaMesagxo(update);
                         }
                         else if (update.Message.Text.StartsWith("/stop"))
