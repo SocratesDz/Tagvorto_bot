@@ -72,9 +72,15 @@ namespace TagVorto_Bot
         private void senduVorton(Telegram.Bot.Types.Update update)
         {
             var item = this.GetSingleWord();
-            var vorto = String.Format("{0}\n\n{1}", item.Title, item.Description);
-            
-            botApi.SendTextMessage(update.Message.Chat.Id, vorto);
+            if (item == null)
+            {
+                botApi.SendTextMessage(update.Message.Chat.Id, "Pardonu, mi ne povas sendi la vorton nun. Mi pardonpetas pro la ĝeno.");
+            }
+            else
+            {
+                var vorto = String.Format("{0}\n\n{1}", item.Title, item.Description);
+                botApi.SendTextMessage(update.Message.Chat.Id, vorto);
+            }
         }
 
         private void bonvenaMesagxo(Telegram.Bot.Types.Update update)
