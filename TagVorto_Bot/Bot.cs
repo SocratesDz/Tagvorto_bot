@@ -213,7 +213,7 @@ namespace TagVorto_Bot
                     }
                 }
 
-                if (tagvorto.PubDate.AddDays(1).CompareTo(DateTime.Now) == -1)
+                if (tagvorto != null && tagvorto.PubDate.AddDays(1).CompareTo(DateTime.Now) == -1)
                 {
                     this.senduVortonAlAbonantoj();
                 }
